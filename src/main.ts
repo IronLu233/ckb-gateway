@@ -1,6 +1,8 @@
 import EventEmitter2, { ListenerFn } from "eventemitter2";
 import { bytes } from "@ckb-lumos/codec";
 import { validateP2PKHMessage } from "@ckb-lumos/helpers/lib/validate";
+import { TransactionSkeleton } from "@ckb-lumos/helpers";
+import { List } from "immutable";
 import { ETHPersonalSign, WalletSigningMethod } from "./WalletSigningMethod";
 import {
   GatewayInitMessage,
@@ -12,7 +14,6 @@ import type { WalletGatewaySender } from "./client";
 
 /**
  * WalletGatewayReceiver is a class that receives messages from {@link WalletGatewaySender}.
- *
  */
 export class WalletGatewayReceiver extends EventEmitter2 {
   /**
@@ -31,7 +32,6 @@ export class WalletGatewayReceiver extends EventEmitter2 {
 
   constructor() {
     super();
-    this.init();
   }
 
   /**
@@ -57,7 +57,7 @@ export class WalletGatewayReceiver extends EventEmitter2 {
     }
   }
 
-  private init() {
+  public init() {
     if (typeof window === "undefined") {
       return;
     }
@@ -98,18 +98,29 @@ export class WalletGatewayReceiver extends EventEmitter2 {
       return;
     }
 
-    const { messageForSigning, txSkeleton, hashContentExceptRawTx } =
+    let { messageForSigning, txSkeleton, hashContentExceptRawTx } =
       this.validatePayload;
+
+    txSkeleton = TransactionSkeleton({
+      cellDeps: List(txSkeleton.cellDeps),
+      headerDeps: List(txSkeleton.headerDeps),
+      inputs: List(txSkeleton.inputs),
+      outputs: List(txSkeleton.outputs),
+      witnesses: List(txSkeleton.witnesses),
+    });
     const isValid = validateP2PKHMessage(
       messageForSigning,
-      txSkeleton,
+      TransactionSkeleton(txSkeleton),
       hashContentExceptRawTx
     );
 
     this.validated = true;
     this._isValid = isValid;
 
-    this.emit(isValid ? "ValidateSuccess" : "ValidateFailed", {});
+    this.emit(
+      isValid ? "ValidateSuccess" : "ValidateFailed",
+      this.validatePayload
+    );
     return isValid;
   }
 

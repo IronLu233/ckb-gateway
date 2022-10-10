@@ -9,10 +9,11 @@
     "ckb-gateway": "file:..",
     "parcel": "^2.7.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-use": "^17.4.0"
   },
   "scripts": {
-    "start": "parcel index.html"
+    "start": "parcel index.html --no-cache"
   },
   "devDependencies": {
     "process": "^0.11.10"
