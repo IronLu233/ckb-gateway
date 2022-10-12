@@ -1,14 +1,15 @@
-import EventEmitter2, { ListenerFn } from "eventemitter2";
+import EventEmitter2, { Listener, ListenerFn } from "eventemitter2";
 import { bytes } from "@ckb-lumos/codec";
 import { validateP2PKHMessage } from "@ckb-lumos/helpers/lib/validate";
-import { TransactionSkeleton } from "@ckb-lumos/helpers";
-import { List } from "immutable";
 import { ETHPersonalSign, WalletSigningMethod } from "./WalletSigningMethod";
 import {
   GatewayInitMessage,
   GatewayInteractionMessage,
   GatewayMessageType,
-  RequestValidateMessage,
+  RequestGatewayMessage,
+  SignDigestDoneMessage,
+  SigningType2HashAlgorithmMap,
+  ValidateDoneMessage,
 } from "./shared";
 import type { WalletGatewaySender } from "./client";
 
@@ -28,7 +29,7 @@ export class WalletGatewayReceiver extends EventEmitter2 {
 
   private _isValid = false;
 
-  validatePayload: RequestValidateMessage["payload"] | null = null;
+  validatePayload: RequestGatewayMessage["payload"] | null = null;
 
   constructor() {
     super();
@@ -45,7 +46,10 @@ export class WalletGatewayReceiver extends EventEmitter2 {
     return this._isValid;
   }
 
-  opener: Window | undefined = window.opener;
+  /**
+   * The opener window reference of gateway window
+   */
+  private opener: Window | null = window.opener;
 
   private postMessageToOpenerWindow<T, P extends object = {}>(
     message: T extends GatewayMessageType
@@ -53,19 +57,17 @@ export class WalletGatewayReceiver extends EventEmitter2 {
       : never
   ) {
     if (this.opener) {
-      this.opener.postMessage(message);
+      this.opener.postMessage(message, "*");
     }
   }
 
+  /**
+   * init the gateway receiver. tells the opener window that the gateway is ready.
+   */
   public init() {
     if (typeof window === "undefined") {
       return;
     }
-
-    this.postMessageToOpenerWindow({
-      type: GatewayMessageType.GatewayInit,
-      payload: {},
-    } as GatewayInitMessage);
 
     window.addEventListener(
       "message",
@@ -76,8 +78,8 @@ export class WalletGatewayReceiver extends EventEmitter2 {
             this.validateTransaction();
             return;
           }
-          case GatewayMessageType.RequestSign: {
-            this.requestSign();
+          case GatewayMessageType.RequestSignDigest: {
+            this.requestSignDigest();
           }
         }
         if (event.data.type === GatewayMessageType.RequestValidate) {
@@ -85,11 +87,13 @@ export class WalletGatewayReceiver extends EventEmitter2 {
         }
       }
     );
+
+    this.postMessageToOpenerWindow({
+      type: GatewayMessageType.GatewayInit,
+      payload: {},
+    } as GatewayInitMessage);
   }
 
-  /**
-   * Validate an transaction
-   */
   private async validateTransaction() {
     if (!this.validatePayload) {
       throw new Error("Not receive any payload");
@@ -98,35 +102,37 @@ export class WalletGatewayReceiver extends EventEmitter2 {
       return;
     }
 
-    let { messageForSigning, txSkeleton, hashContentExceptRawTx } =
-      this.validatePayload;
-
-    txSkeleton = TransactionSkeleton({
-      cellDeps: List(txSkeleton.cellDeps),
-      headerDeps: List(txSkeleton.headerDeps),
-      inputs: List(txSkeleton.inputs),
-      outputs: List(txSkeleton.outputs),
-      witnesses: List(txSkeleton.witnesses),
-    });
-    const isValid = validateP2PKHMessage(
+    let {
       messageForSigning,
-      TransactionSkeleton(txSkeleton),
-      hashContentExceptRawTx
+      rawTransaction,
+      hashContentExceptRawTx,
+      signingType,
+    } = this.validatePayload;
+
+    const hashAlgorithm = SigningType2HashAlgorithmMap[signingType];
+
+    const success = validateP2PKHMessage(
+      messageForSigning,
+      rawTransaction,
+      hashContentExceptRawTx,
+      hashAlgorithm
     );
 
     this.validated = true;
-    this._isValid = isValid;
+    this._isValid = success;
 
-    this.emit(
-      isValid ? "ValidateSuccess" : "ValidateFailed",
-      this.validatePayload
-    );
-    return isValid;
+    this.emit("ValidateDone", { success: success, ...this.validatePayload });
+    return success;
   }
 
-  async requestSign() {
+  /**
+   * Request the wallet to sign the digest.
+   */
+  async requestSignDigest() {
     if (!this.validated) {
-      throw new Error("Not validated yet, please call `validate` first.");
+      throw new Error(
+        "Not validated yet, please wait gateway caller's validate request"
+      );
     }
     if (!this.validatePayload) {
       throw new Error("Not receive any payload");
@@ -147,9 +153,23 @@ export class WalletGatewayReceiver extends EventEmitter2 {
       const signedMessage = await signingMethod(
         bytes.hexify(messageForSigning)
       );
-      this.emit("SignSuccess", { signedMessage });
+      this.emit("SignDigestDone", { signedMessage, success: true });
+      this.postMessageToOpenerWindow({
+        type: GatewayMessageType.SignDigestDone,
+        payload: {
+          success: true,
+          signedMessage,
+        },
+      });
     } catch (e) {
-      this.emit("SignFailed", { reason: e });
+      this.emit("SignDigestDone", { reason: e as Error, success: false });
+      this.postMessageToOpenerWindow({
+        type: GatewayMessageType.SignDigestDone,
+        payload: {
+          success: false,
+        },
+      });
+
       throw e;
     }
 
@@ -157,39 +177,36 @@ export class WalletGatewayReceiver extends EventEmitter2 {
   }
 
   on(
-    event: "ValidateSuccess",
-    listener: (payload: RequestValidateMessage["payload"]) => unknown
-  ): this;
+    event: "ValidateDone",
+    listener: (
+      payload: ValidateDoneMessage["payload"] & RequestGatewayMessage["payload"]
+    ) => unknown
+  ): this | Listener;
   on(
-    event: "ValidateFailed",
-    listener: (payload: RequestValidateMessage["payload"]) => unknown
-  ): this;
-  on(
-    event: "SignSuccess",
-    listener: (payload: { signedMessage: string }) => unknown
-  ): this;
-  on(
-    event: "SignFailed",
-    listener: (payload: { error: Error }) => unknown
-  ): this;
-  override on(
-    event: "ValidateSuccess" | "ValidateFailed" | "SignSuccess" | "SignFailed",
-    listener: ListenerFn
-  ) {
-    return super.on(event, (payload) => {
-      this.postMessageToOpenerWindow({
-        type: event as GatewayMessageType,
-        payload,
-      });
-      listener(payload);
-    });
+    event: "SignDigestDone",
+    listener: (payload: SignDigestDoneMessage["payload"]) => unknown
+  ): this | Listener;
+  /**
+   * @internal
+   */
+  on(event: never, listener: ListenerFn) {
+    return super.on(event, listener);
   }
 
-  override emit(
-    event: "ValidateSuccess" | "ValidateFailed" | "SignSuccess" | "SignFailed",
-    payload: Record<any, any>
-  ) {
-    return super.emit(event, payload);
+  emit(
+    event: "ValidateDone",
+    payload: ValidateDoneMessage["payload"] & RequestGatewayMessage["payload"]
+  ): boolean;
+  emit(
+    event: "SignDigestDone",
+    payload: SignDigestDoneMessage["payload"]
+  ): boolean;
+
+  /**
+   * @internal
+   */
+  emit(event: never, payload: Record<any, any>) {
+    return super.emit(event as string, payload);
   }
 }
 

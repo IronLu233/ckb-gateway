@@ -1,37 +1,76 @@
-import EventEmitter2 from "eventemitter2";
-import { GatewayMessageType } from "./shared";
-import { BytesLike, bytes } from "@ckb-lumos/codec";
-import { TransactionSkeletonType } from "@ckb-lumos/helpers";
+import EventEmitter2, { Listener, ListenerFn } from "eventemitter2";
+import {
+  GatewayMessageType,
+  RawTransaction,
+  RequestGatewayMessage,
+  SignDigestDoneMessage,
+  ValidateDoneMessage,
+} from "./shared";
+import { BytesLike } from "@ckb-lumos/codec";
 
 export class WalletGatewaySender extends EventEmitter2 {
-  constructor(readonly gatewayURL = "//localhost:1234") {
+  constructor(readonly gatewayURL: string) {
     super();
   }
 
-  async requestValidate(
+  gatewayWindow: Window | null = null;
+
+  /**
+   * Request validate and sign a digest in gateway.
+   * This method will open a gateway page in a new window.
+   */
+  async requestGatewaySignDigest(
     messageForSigning: BytesLike,
-    txSkeleton: TransactionSkeletonType,
+    rawTransaction: RawTransaction,
     hashContentExceptRawTx: BytesLike,
-    hashAlgorithm = "ckb-blake2b-256"
+    signingType: "eth_personal_sign"
   ) {
-    const gatewayWindow = window.open(this.gatewayURL);
+    const origin = new URL(this.gatewayURL).origin;
+    const gatewayWindow = (this.gatewayWindow = window.open(this.gatewayURL));
     if (!gatewayWindow) {
       throw new Error("Failed to open gateway window");
     }
-    await new Promise((resolve, reject) => {
-      gatewayWindow.addEventListener("message", (event) => {
+    await new Promise<void>((resolve) => {
+      window.addEventListener("message", (event) => {
         this.emit(event.data.type, event.data.payload);
+        if (event.data.type === GatewayMessageType.GatewayInit) {
+          resolve();
+        }
       });
     });
 
-    gatewayWindow.postMessage({
-      type: GatewayMessageType.RequestValidate,
-      payload: {
-        messageForSigning: bytes.hexify(messageForSigning),
-        txSkeleton: txSkeleton.toJSON(),
-        hashContentExceptRawTx: bytes.hexify(hashContentExceptRawTx),
-        hashAlgorithm,
-      },
-    });
+    gatewayWindow.postMessage(
+      {
+        type: GatewayMessageType.RequestValidate,
+        payload: {
+          messageForSigning: messageForSigning,
+          rawTransaction: rawTransaction,
+          hashContentExceptRawTx: hashContentExceptRawTx,
+          signingType,
+        },
+      } as RequestGatewayMessage,
+      origin
+    );
+  }
+
+  /**
+   * Close the opening gateway window
+   */
+  closeGateway() {
+    this.gatewayWindow?.close();
+  }
+
+  on(
+    event: "ValidateDone",
+    listener: (
+      payload: ValidateDoneMessage["payload"] & RequestGatewayMessage["payload"]
+    ) => unknown
+  ): this | Listener;
+  on(
+    event: "SignDigestDone",
+    listener: (payload: SignDigestDoneMessage["payload"]) => unknown
+  ): this | Listener;
+  on(event: never, listener: ListenerFn) {
+    return super.on(event, listener);
   }
 }

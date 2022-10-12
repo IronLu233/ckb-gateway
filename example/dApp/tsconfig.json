@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "lib": ["dom", "ESNext"],
+    "jsx": "react",
+    "module": "CommonJS",
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  }
+}

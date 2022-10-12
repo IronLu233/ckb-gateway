@@ -1,14 +1,12 @@
-import type { TransactionSkeletonType } from "@ckb-lumos/helpers";
+import type { Transaction } from "@ckb-lumos/base";
 import type { BytesLike } from "@ckb-lumos/codec";
 
 export enum GatewayMessageType {
   GatewayInit = "GatewayInit",
   RequestValidate = "RequestValidate",
-  ValidateSuccess = "ValidateSuccess",
-  ValidateFailed = "ValidateFailed",
-  RequestSign = "RequestSign",
-  SignSuccess = "SignSuccess",
-  SignFailed = "SignFailed",
+  ValidateDone = "ValidateDone",
+  RequestSignDigest = "RequestSignDigest",
+  SignDigestDone = "SignDigestDone",
 }
 
 export type GatewayInteractionMessage<
@@ -20,38 +18,44 @@ export type GatewayInteractionMessage<
 };
 
 type HashAlgorithm = "ckb-blake2b-256";
-export type RequestValidateMessage = GatewayInteractionMessage<
+type SupportedSigningType = "eth_personal_sign"; // TODO: support other wallet.
+
+export const SigningType2HashAlgorithmMap: Record<
+  SupportedSigningType,
+  HashAlgorithm
+> = {
+  eth_personal_sign: "ckb-blake2b-256",
+};
+
+export type RequestGatewayMessage = GatewayInteractionMessage<
   GatewayMessageType.RequestValidate,
   {
     messageForSigning: BytesLike;
-    txSkeleton: TransactionSkeletonType;
+    rawTransaction: RawTransaction;
     hashContentExceptRawTx: BytesLike;
-    hashAlgorithm: HashAlgorithm;
     signingType: SupportedSigningType;
   }
 >;
-export type GatewayInitMessage = GatewayInteractionMessage<
-  GatewayMessageType.GatewayInit,
+
+export type GatewayInitMessage =
+  GatewayInteractionMessage<GatewayMessageType.GatewayInit>;
+
+export type ValidateDoneMessage = GatewayInteractionMessage<
+  GatewayMessageType.ValidateDone,
+  { success: boolean }
+>;
+
+export type RequestSignDigestMessage = GatewayInteractionMessage<
+  GatewayMessageType.RequestSignDigest,
   {}
 >;
-export type ValidateSuccessMessage =
-  GatewayInteractionMessage<GatewayMessageType.ValidateSuccess>;
 
-export type ValidateFailedMessage =
-  GatewayInteractionMessage<GatewayMessageType.ValidateFailed>;
-
-export type RequestSignMessage = GatewayInteractionMessage<
-  GatewayMessageType.RequestSign,
-  {}
+export type SignDigestDoneMessage = GatewayInteractionMessage<
+  GatewayMessageType.SignDigestDone,
+  { success: true; signedMessage: string } | { success: false; reason: Error }
 >;
 
-export type SignSuccessMessage = GatewayInteractionMessage<
-  GatewayMessageType.SignSuccess,
-  { signedMessage: string }
+export type RawTransaction = Pick<
+  Transaction,
+  "cellDeps" | "headerDeps" | "inputs" | "outputs" | "version" | "outputsData"
 >;
-export type SignFailedMessage = GatewayInteractionMessage<
-  GatewayMessageType.SignFailed,
-  { reason: Error }
->;
-
-type SupportedSigningType = "eth_personal_sign"; // TODO: support other wallet.

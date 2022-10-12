@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
-import { WalletGatewayReceiver } from "ckb-gateway/dist/main";
+import { WalletGatewayReceiver } from "ckb-gateway";
 import { useSetState } from "react-use";
 
 const App: FC = () => {
@@ -9,13 +9,18 @@ const App: FC = () => {
   useEffect(() => {
     receiver.init();
     receiver.on(
-      "ValidateSuccess",
-      ({ messageForSigning, txSkeleton, hashContentExceptRawTx }) => {
+      "ValidateDone",
+      ({
+        messageForSigning,
+        rawTransaction,
+        hashContentExceptRawTx,
+        success,
+      }) => {
         setState({
           messageForSigning,
-          txSkeleton,
+          rawTransaction,
           hashContentExceptRawTx,
-          isValid: true,
+          isValid: success,
         });
       }
     );
@@ -28,7 +33,7 @@ const App: FC = () => {
       {state.isValid && (
         <button
           onClick={() => {
-            receiver.requestSign();
+            receiver.requestSignDigest();
           }}
         >
           Sign

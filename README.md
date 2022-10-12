@@ -7,7 +7,7 @@ The user experience of these wallets is excellent, the transaction will be displ
 
 ## Validate Receiver Side SDK Usage
 
-For example, we have a App, receive the CKB transaction validate request from some dApp.
+For example, we have a gateway App, receive the CKB transaction validate request from some dApp.
 
 When the App receive the raw transaction and message for signing, it shows human-readable transaction information in the UI, and tells the validate result.
 Then if verification is passed. user can click sign button, to request wallet for signing message. 
@@ -34,30 +34,31 @@ const signedMessage = await receiver.requestSign();
 This validate receiver App should be deployed on a server, and the server should be accessible from the internet.
 
 ## Validate Sender Side SDK Usage
-Here we have a dApp, want sign a transaction and send it to network.
-
+Here we have a dApp, want sign a transaction digest in a thrust environment and send it to network.
 
 ``` typescript
 const sender = new WalletGatewaySender('http://localhost:2333'/* wallet gateway receiver address */);
-await sender.requestValidate({
-    txSkeleton,
+
+// this method will open the gateway page, and send transaction
+await sender.requestGatewaySignDigest({
     messageForSigning,
-    hashAlgorithm,
+    rawTransaction,
     hashContentExceptRawTx,
     signingType,
 });
 
 sender.on('ValidateSuccess', () => {
     // the receiver validate success, and user click "Sign" button, invoke`requestSign` to request wallet for signing
-    const signedMessage = await sender.requestSign();
-    // send the transaction with signed message to network
 });
 
 sender.on('ValidateFailed', () => {
     // the receiver validate failed, warn user something is tampered
 });
 
-sender.on('SignSuccess', ({ messageForSigning }) => {
+sender.on('SignSuccess', ({ signedMessage }) => {
     // the receiver sign success, you can get the signed message.
+    
+    // when you receive the signed message. you can close the gateway page
+    sender.closeGateway();
 });
 ```
