@@ -1,1 +1,0 @@
-export { WalletGatewayProvider } from "./WalletGatewayProvider";
