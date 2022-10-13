@@ -1,2 +1,2 @@
-export * from "./client";
-export * from "./main";
+export * from "./WalletGatewayClient";
+export * from "./WalletGatewayProvider";

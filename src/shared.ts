@@ -18,7 +18,7 @@ export type GatewayInteractionMessage<
 };
 
 type HashAlgorithm = "ckb-blake2b-256";
-type SupportedSigningType = "eth_personal_sign"; // TODO: support other wallet.
+export type SupportedSigningType = "eth_personal_sign"; // TODO: support other wallet.
 
 export const SigningType2HashAlgorithmMap: Record<
   SupportedSigningType,
@@ -59,3 +59,20 @@ export type RawTransaction = Pick<
   Transaction,
   "cellDeps" | "headerDeps" | "inputs" | "outputs" | "version" | "outputsData"
 >;
+
+export interface GatewayIO {
+  postMessage(
+    message: any,
+    targetOrigin: string,
+    transfer?: Transferable[]
+  ): void;
+  postMessage(message: any, options?: WindowPostMessageOptions): void;
+  addEventListener(
+    event: "message",
+    listener: (event: MessageEvent) => void
+  ): void;
+}
+
+export interface GatewayProviderIO extends GatewayIO {
+  close(): void;
+}

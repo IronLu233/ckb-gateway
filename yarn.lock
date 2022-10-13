@@ -90,7 +90,7 @@
     bech32 "^2.0.0"
     immutable "^4.0.0-rc.12"
 
-"@ckb-lumos/lumos@0.19.0-beta.0":
+"@ckb-lumos/lumos@^0.19.0-beta.0":
   version "0.19.0-beta.0"
   resolved "https://registry.yarnpkg.com/@ckb-lumos/lumos/-/lumos-0.19.0-beta.0.tgz#090a918e5b28580e4935d31a58014dcd6087aa44"
   integrity sha512-JyfTkTQAigEW644sqy8h1D1yK3AyAkIqnlnfMh4JTUszQssYl9QAoaO/XP9Eymudm9O0hL8hRPODQCSAqyshRw==
@@ -183,6 +183,11 @@
   version "4.14.186"
   resolved "https://registry.yarnpkg.com/@types/lodash/-/lodash-4.14.186.tgz#862e5514dd7bd66ada6c70ee5fce844b06c8ee97"
   integrity sha512-eHcVlLXP0c2FlMPm56ITode2AgLMSa6aJ05JTTbYbI+7EMkCEE5qk2E41d5g2lCVTqRe0GnnRFurmlCsDODrPw==
+
+"@types/node@^18.8.5":
+  version "18.8.5"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-18.8.5.tgz#6a31f820c1077c3f8ce44f9e203e68a176e8f59e"
+  integrity sha512-Bq7G3AErwe5A/Zki5fdD3O6+0zDChhg671NfPjtIcbtzDNZTv4NPKMRFr7gtYPG7y+B8uTiNK4Ngd9T0FTar6Q==
 
 axios@0.21.4:
   version "0.21.4"
