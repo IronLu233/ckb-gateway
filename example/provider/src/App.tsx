@@ -28,6 +28,7 @@ const App: FC = () => {
   const messageContent = !!state.messageForSigning && (
     <div>
       <div>messageForSigning: {state.messageForSigning}</div>
+      <div>{JSON.stringify(state.rawTransaction, null, 2)}</div>
       <div>{state.isValid ? "Verify Pass" : "Verify Failed"}</div>
       {state.isValid && (
         <button

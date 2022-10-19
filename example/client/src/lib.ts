@@ -159,7 +159,9 @@ export async function transfer(options: Options): Promise<string> {
 
     return messageGroup[0];
   })();
-  const sender = new WalletGatewayClient("http://localhost:11451");
+  const sender = new WalletGatewayClient(
+    (window as any).gatewayURL || "http://localhost:5173"
+  );
 
   sender.requestGatewaySignDigest(
     messageForSigning.message,
