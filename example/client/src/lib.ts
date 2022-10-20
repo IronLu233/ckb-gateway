@@ -13,23 +13,7 @@ import { WalletGatewayClient } from "ckb-gateway";
 import { createP2PKHMessageGroup } from "@ckb-lumos/common-scripts";
 import { SerializeRcLockWitnessLock } from "./omni/omni";
 
-export const CONFIG = config.createConfig({
-  PREFIX: "ckt",
-  SCRIPTS: {
-    ...config.predefined.AGGRON4.SCRIPTS,
-    // for more about Omni lock, please check https://github.com/XuJiandong/docs-bank/blob/master/omni_lock.md
-    OMNI_LOCK: {
-      CODE_HASH:
-        "0x79f90bb5e892d80dd213439eeab551120eb417678824f282b4ffb5f21bad2e1e",
-      HASH_TYPE: "type",
-      TX_HASH:
-        "0x9154df4f7336402114d04495175b37390ce86a4906d2d4001cf02c3e6d97f39c",
-      INDEX: "0x0",
-      DEP_TYPE: "code",
-    },
-  },
-});
-
+const CONFIG = config.predefined.AGGRON4;
 config.initializeConfig(CONFIG);
 
 const CKB_RPC_URL = "https://testnet.ckb.dev/rpc";
@@ -113,10 +97,10 @@ export async function transfer(options: Options): Promise<string> {
       // omni lock dep
       {
         outPoint: {
-          txHash: CONFIG.SCRIPTS.OMNI_LOCK.TX_HASH,
-          index: CONFIG.SCRIPTS.OMNI_LOCK.INDEX,
+          txHash: CONFIG.SCRIPTS.OMNILOCK.TX_HASH,
+          index: CONFIG.SCRIPTS.OMNILOCK.INDEX,
         },
-        depType: CONFIG.SCRIPTS.OMNI_LOCK.DEP_TYPE,
+        depType: CONFIG.SCRIPTS.OMNILOCK.DEP_TYPE,
       },
       // SECP256K1 lock is depended by omni lock
       {

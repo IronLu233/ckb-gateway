@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { helpers, Script } from "@ckb-lumos/lumos";
-import { asyncSleep, capacityOf, CONFIG, ethereum, transfer } from "./lib";
+import { getConfig } from "@ckb-lumos/config-manager";
+import { omnilock } from "@ckb-lumos/common-scripts";
+import { asyncSleep, capacityOf, ethereum, transfer } from "./lib";
 
 function App() {
   const [ethAddr, setEthAddr] = useState("");
@@ -27,18 +29,20 @@ function App() {
     ethereum
       .enable()
       .then(([ethAddr]: string[]) => {
-        const omniLock: Script = {
-          codeHash: CONFIG.SCRIPTS.OMNI_LOCK.CODE_HASH,
-          hashType: CONFIG.SCRIPTS.OMNI_LOCK.HASH_TYPE,
-          // omni flag       pubkey hash   omni lock flags
-          // chain identity   eth addr      function flag()
-          // 00: Nervos       👇            00: owner
-          // 01: Ethereum     👇            01: administrator
-          //      👇          👇            👇
-          args: `0x01${ethAddr.substring(2)}00`,
-        };
+        const CONFIG = getConfig();
+        const omniLock = omnilock.createOmnilockScript(
+          {
+            auth: {
+              flag: "ETHEREUM",
+              content: ethAddr,
+            },
+          },
+          {
+            config: CONFIG,
+          }
+        );
 
-        const omniAddr = helpers.generateAddress(omniLock);
+        const omniAddr = helpers.encodeToAddress(omniLock);
 
         setEthAddr(ethAddr);
         setOmniAddr(omniAddr);
