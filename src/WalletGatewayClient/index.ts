@@ -1,0 +1,1 @@
+export { WalletGatewayClient } from "./WalletGatewayClient";
